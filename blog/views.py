@@ -10,16 +10,16 @@ from .serializers import NoteSerializer
 class BlogListView(APIView):
     """ BlogListView """
     def get(self, request):
-        notes = Books.objects.filter(public=True)
+        books = Books.objects.filter(public=True)
 
         res = []
-        for note in notes:
+        for book in books:
             res.append({
-                'id': note.id,
-                'title': note.title,
+                'id': book.id,
+                'title': book.title,
                 'author': {
-                    'id': note.author.id,
-                    'username': note.author.username,
+                    'id': book.author.id,
+                    'username': book.author.username,
                 }
             })
 

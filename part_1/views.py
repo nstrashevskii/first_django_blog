@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from blog.models import Books
 
 
 def home(request):
@@ -9,6 +10,7 @@ def home(request):
         'message': 'Добро пожаловать',
         'left': 'сообщение слева',
         'right': 'сообщение справа',
+        'books': Books.objects.all()
     }
 
     # Рендеринг шаблона с последующим ответом клиенту
