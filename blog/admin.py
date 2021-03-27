@@ -1,5 +1,5 @@
 from django.contrib import admin
-from blog.models import Books
+from blog.models import Books, Comment
 
 from django.conf.locale.ru import formats as ru_formats
 ru_formats.DATE_FORMAT = 'd.m.Y H:i:s'
@@ -20,4 +20,7 @@ class NoteAdmin(admin.ModelAdmin):
             obj.author = request.user
         super().save_model(request, obj, form, change)
 
-# Register your models here.
+
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    pass

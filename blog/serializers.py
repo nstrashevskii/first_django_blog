@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Books
+from .models import Books, Comment
 from datetime import datetime
 from django.contrib.auth.models import User
 
@@ -36,3 +36,20 @@ class BookEditorSerializer(serializers.ModelSerializer):
         model = Books
         fields = "__all__"
         read_only_fields = ['date_add', 'author', ]  # Только для чтения
+
+
+class BookMiniSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Books
+        fields = ('id', 'title', )
+
+
+class CommentAddSerializer(serializers.ModelSerializer):
+    """ Добавление комментария """
+    author = AuthorSerializer(read_only=True)
+    book = BookMiniSerializer(read_only=True)
+
+    class Meta:
+        model = Comment
+        fields = "__all__"
+        read_only_fields = ['date_add', 'author', 'book']  # Только для чтения

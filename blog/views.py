@@ -5,8 +5,8 @@ from rest_framework.views import APIView
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
-from .models import Books
-from .serializers import BookSerializer, AuthorSerializer, BookDetailSerializer, BookEditorSerializer
+from .models import Books, Comment
+from .serializers import BookSerializer, BookDetailSerializer, BookEditorSerializer, CommentAddSerializer
 
 
 class BooksView(APIView):
@@ -72,3 +72,26 @@ class BookEditorView(APIView):
             return Response(new_note.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class CommentView(APIView):
+    """ Комментарий к статье """
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request, book_id):
+        """ Новый комментарий """
+
+        book = Books.objects.filter(pk=book_id).first()
+        if not book:
+            raise NotFound(f'Статья с id={book_id} не найдена')
+
+        new_comment = CommentAddSerializer(data=request.data)
+        if new_comment.is_valid():
+            new_comment.save(book=book, author=request.user)
+            return Response(new_comment.data, status=status.HTTP_201_CREATED)
+        else:
+            return Response(new_comment.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, comment_id):
+        """ Удалить комментарий """
+        comment = Comment.objects.filter(pk=comment_id, author=request.user)
+        comment.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
