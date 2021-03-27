@@ -10,10 +10,10 @@ from .serializers import BookSerializer, AuthorSerializer, BookDetailSerializer,
 
 
 class BooksView(APIView):
-    """ Статьи для блога """
+    """ книги для блога """
 
     def get(self, request):
-        """ Получить статьи для блога """
+        """ Получить книги для блога """
         notes = Books.objects.filter(public=True).order_by('-date_add', 'title')
         serializer = BookSerializer(notes, many=True)
 
@@ -35,8 +35,10 @@ class BookDetailView(APIView):
 
 class BookEditorView(APIView):
 
+    permission_classes = (IsAuthenticated, )
+
     def post(self, request):
-        """ Новая статья для блога """
+        """ Новая книга для блога """
 
         # Передаем в сериалайзер (валидатор) данные из запроса
         new_note = BookEditorSerializer(data=request.data)
@@ -48,3 +50,25 @@ class BookEditorView(APIView):
             return Response(new_note.data, status=status.HTTP_201_CREATED)
         else:
             return Response(new_note.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, book_id):
+        """ Правка в книге """
+
+        # Находим редактируемую статью
+        book = Books.objects.filter(pk=book_id, author=request.user).first()
+        if not book:
+            raise NotFound(f'Статья с id={book_id} для пользователя {request.user.username} не найдена')
+
+            # Для сохранения изменений необходимо передать 3 параметра
+            # Объект связанный со статьей в базе: `note`
+            # Изменяемые данные: `data`
+            # Флаг частичного оновления (т.е. можно проигнорировать обязательные поля): `partial`
+        new_note = BookEditorSerializer(book, data=request.data, partial=True)
+
+        if new_note.is_valid():
+            new_note.save()
+            return Response(new_note.data, status=status.HTTP_200_OK)
+        else:
+            return Response(new_note.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
