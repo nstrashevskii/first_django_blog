@@ -1,9 +1,13 @@
+import math
+
 from rest_framework import generics, viewsets
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from django.core.paginator import Paginator
+from django.shortcuts import render
 
 from .models import Books, Comment
 from .serializers import BookSerializer, BookDetailSerializer, BookEditorSerializer, CommentAddSerializer
@@ -12,11 +16,17 @@ from .serializers import BookSerializer, BookDetailSerializer, BookEditorSeriali
 class BooksView(APIView):
     """ книги для блога """
 
-    def get(self, request):
+    def get(self, request, page_number=1):
         """ Получить книги для блога """
-        notes = Books.objects.filter(public=True).order_by('-date_add', 'title')
-        serializer = BookSerializer(notes, many=True)
+        # page_number = self.request.query_params.get('page_number ', 2)
+        page_size = self.request.query_params.get('page_size', 5)
 
+        books = Books.objects.filter(public=True).order_by('-date_add', 'title')
+        paginator = Paginator(books, page_size)
+        page_count = math.ceil(Books.objects.count() / page_size)
+        if page_count // page_number == 0:
+            return render(request, 'blog/errors_not_found.html')
+        serializer = BookSerializer(paginator.page(page_number), many=True)
         return Response(serializer.data)
 
 

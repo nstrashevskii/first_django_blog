@@ -20,8 +20,33 @@ class AuthorSerializer(serializers.ModelSerializer):
         fields = ('id', 'username', 'email', 'date_joined')
 
 
+class CommentsSerializer(serializers.ModelSerializer):
+    """ Комментарии и оценки. Используется в методе: `/note/{note_id}/` Статя блога """
+    author = AuthorSerializer(read_only=True)
+
+    # Меняем название параметра в ответе
+    comment_id = serializers.SerializerMethodField('get_comment_id')
+
+    def get_comment_id(self, obj):
+        return obj.pk
+
+    # Переопределяем параметр в ответе
+    rating = serializers.SerializerMethodField('get_rating')
+
+    def get_rating(self, obj):
+        return {
+            'value': obj.rating,
+            'display': obj.get_rating_display()
+        }
+
+    class Meta:
+        model = Comment
+        fields = ('comment_id', 'rating', 'message', 'date_add', 'author',)
+
+
 class BookDetailSerializer(serializers.ModelSerializer):
     author = AuthorSerializer(read_only=True)
+    comments = CommentsSerializer(many=True, read_only=True)
 
     class Meta:
         model = Books
@@ -41,7 +66,7 @@ class BookEditorSerializer(serializers.ModelSerializer):
 class BookMiniSerializer(serializers.ModelSerializer):
     class Meta:
         model = Books
-        fields = ('id', 'title', )
+        fields = ('id', 'title',)
 
 
 class CommentAddSerializer(serializers.ModelSerializer):
