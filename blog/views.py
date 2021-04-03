@@ -1,7 +1,7 @@
 import math
 
 from django.core.paginator import Paginator
-from django.shortcuts import render
+from django.db.models import Avg
 from rest_framework import status
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
@@ -18,13 +18,17 @@ class BooksView(APIView):
     def get(self, request, page_number=1):
         """ Получить книги для блога """
         page_size = self.request.query_params.get('page_size', 5)
+        # `select_related` - это оптимизация запроса (join). Отношение Один к Одному
+        # https://django.fun/docs/django/ru/3.1/ref/models/querysets/#select-related
+        books = Books.objects.filter(public=True).order_by('-date_add', 'title').select_related('author')
 
-        books = Books.objects.filter(public=True).order_by('-date_add', 'title')
+        # Рассчитать средний рейтинг
+        books = books.annotate(average_rating=Avg('comments__rating'))
         paginator = Paginator(books, page_size)
         page_count = math.ceil(Books.objects.count() / page_size)
 
         if page_count // page_number == 0:
-            raise NotFound(f'Нет страницы {page_number}')
+            raise NotFound(f'Нет страницы с номером {page_number}')
 
         serializer = BookSerializer(paginator.page(page_number), many=True)
 
@@ -35,7 +39,15 @@ class BookDetailView(APIView):
 
     def get(self, request, book_id):
         """ Получить статю """
-        book = Books.objects.filter(pk=book_id, public=True).first()
+        # `prefetch_related` - это оптимизация запроса для отношения Многие к Одному
+        # https://django.fun/docs/django/ru/3.1/ref/models/querysets/#prefetch-related
+        book = Books.objects.select_related(
+            'author'
+        ).prefetch_related(
+            'comments'
+        ).filter(
+            pk=book_id, public=True
+        ).first()
 
         if not book:
             raise NotFound(f'Опубликованная книга с id={book_id} не найдена')
@@ -52,15 +64,15 @@ class BookEditorView(APIView):
         """ Новая книга для блога """
 
         # Передаем в сериалайзер (валидатор) данные из запроса
-        new_note = BookEditorSerializer(data=request.data)
+        new_book = BookEditorSerializer(data=request.data)
 
         # Проверка параметров
-        if new_note.is_valid():
+        if new_book.is_valid():
             # Записываем новую статью и добавляем текущего пользователя как автора
-            new_note.save(author=request.user)
-            return Response(new_note.data, status=status.HTTP_201_CREATED)
+            new_book.save(author=request.user)
+            return Response(new_book.data, status=status.HTTP_201_CREATED)
         else:
-            return Response(new_note.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(new_book.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def patch(self, request, book_id):
         """ Правка в книге """
@@ -74,13 +86,13 @@ class BookEditorView(APIView):
             # Объект связанный со статьей в базе: `note`
             # Изменяемые данные: `data`
             # Флаг частичного оновления (т.е. можно проигнорировать обязательные поля): `partial`
-        new_note = BookEditorSerializer(book, data=request.data, partial=True)
+        new_book = BookEditorSerializer(book, data=request.data, partial=True)
 
-        if new_note.is_valid():
-            new_note.save()
-            return Response(new_note.data, status=status.HTTP_200_OK)
+        if new_book.is_valid():
+            new_book.save()
+            return Response(new_book.data, status=status.HTTP_200_OK)
         else:
-            return Response(new_note.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(new_book.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CommentView(APIView):
